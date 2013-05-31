@@ -1,0 +1,7 @@
+The test images are based on the video "AVSS_AB_Easy_Divx.avi" from "ftp://motinas.elec.qmul.ac.uk/pub/iLids/"
+
+It is part of the  "i-Lids bag and vehicle detection challenge" of the  
+"AVSS 2007 - 2007 IEEE International Conference on Advanced Video and Signal based Surveillance"
+
+Requested citation acknowledgment
+E. Maggio, E. Piccardo, C. Regazzoni, A. Cavallaro. "Particle PHD filter for multi-target visual tracking", in Proc. of IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP 2007), Honolulu (USA), April 15-20, 2007
