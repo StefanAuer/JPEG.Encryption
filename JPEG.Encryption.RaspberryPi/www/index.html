@@ -1,0 +1,24 @@
+<html>
+<body>
+<h1>Raspberry Pi - Test web site!</h1>
+<p>This is a test web site that turns a Raspberry Pi into an ENCRYPTED surveillence camera.</p>
+<p>
+  <img id="img">
+</p>
+
+<script type="text/javascript">
+
+
+var reimg;
+window.onload=function() {
+	var url = "./JPEG.Encryption/camera.jpg";
+	reimg = document.getElementById("img");
+	setInterval(function(){
+		reimg.src = url + '?' + new Date();
+	},100);
+}
+</script>
+
+
+
+</body></html>
