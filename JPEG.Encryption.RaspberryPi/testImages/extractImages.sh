@@ -19,7 +19,7 @@ rm -f 100quality/*.jpg
 
 
 echo "extracting bitmaps"
-ffmpeg -an -ss 0:0:11 -i ./original/AVSS_AB_Easy_Divx.avi -r 10 -vf "crop=640:480:40:48" -f image2 ./image%04d.bmp
+ffmpeg -an -ss 0:0:11 -i ./original/AVSS_AB_Easy_Divx.avi -qscale 1 -r 10 -vf "crop=640:480:40:48" -f image2 ./image%04d.bmp
 
 
 for FILE in *.bmp;
