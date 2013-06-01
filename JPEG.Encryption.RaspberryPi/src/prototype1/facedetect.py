@@ -36,7 +36,7 @@ import sys, getopt
 
 # enable import of external files
 from sys import path
-path.append ("../../OpenCV-2.3.1/samples/python2")
+path.append ("../../OpenCV-2.4.3/samples/python2")
 
 from video import create_capture
 from common import clock, draw_str
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     # parse parameters
     args, video_src = getopt.getopt(sys.argv[1:], '', ['cascade=', 'mode=', 'details=', 'password=', 'scale=', 'minWidth', 'minHeight)', '[wwwDir=]'])
     args = dict(args)
-    cascade_fn = args.get('--cascade', "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt.xml")
+    cascade_fn = args.get('--cascade', "../../OpenCV-2.4.3/data/haarcascades/haarcascade_frontalface_alt.xml")
 
     encryption_password = args.get('--password', encryption_password)
     encryption_mode = args.get('--mode', encryption_mode)

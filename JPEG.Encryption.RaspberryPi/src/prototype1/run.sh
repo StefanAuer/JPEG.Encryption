@@ -6,7 +6,7 @@ make -s -C ../../../JPEG.Encryption.C/JPEG.Encryption.Core/
 
 echo "starting prototype"
  python ./facedetect.py \
-          --cascade ../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt.xml \
+          --cascade ../../OpenCV-2.4.3/data/haarcascades/haarcascade_frontalface_alt.xml \
           --password 1234567890123456 \
           --mode e \
           --details 15  \
