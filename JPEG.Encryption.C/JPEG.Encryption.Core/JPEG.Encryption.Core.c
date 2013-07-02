@@ -1,16 +1,11 @@
 /**
  * @file   JPEG.Encryption.Core.c
- *
  * @author Alexander Bliem abliem.itsb-m2012@fh-salzburg.ac.at
  * @author Stefan Auer sauer.itsb-m2012@fh-salzburg.ac.at
- *
  * @date   31.10.2012
  * @version 1.0
+ * @brief This module contains the main() function, and calls the needed function for JPEG encryption and decryption.
  *
- * @brief This module contains the main() function, and calls the needed function for \n
- * JPEG encryption and decryption.
- *
- * detailed description of file.
  */
 
 #include "JPEG.Encryption.Core.h"
@@ -194,7 +189,13 @@ int main (int argc, char* argv[]){
 void myHelp(void)
 {
 	printf("\nJPEG.Encryption.Core.exe FileIn.jpg FileOut.jpg password CryptoMode CryptoDetail [sizeOfROIArray x1 y1 w1 h1 x2 y2 w2 h2 ...] \n");
-
+	printf("CryptoMode ... type e for encryption and d for decryption\n");
+	printf("CryptoDetail ... single bits of byte defines crypto detail\n");
+	printf("                   bit0 = 1 => swap block\n");
+	printf("                   bit1 = 1 => swap code-word-value-pairs\n");
+	printf("                   bit2 = 1 => swap AC value bits\n");
+	printf("                   bit3 = 1 => swap DC value bits\n");
+	printf("one or more ROIs ... sizeOfROIArray x1 y1 w1 h1 x2 y2 w2 h2 ...\n");
 }
 
 

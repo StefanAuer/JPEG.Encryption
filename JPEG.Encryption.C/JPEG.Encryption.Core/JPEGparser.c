@@ -1,50 +1,35 @@
-// NanoJPEG -- KeyJ's Tiny Baseline JPEG Decoder
-// version 1.3 (2012-03-05)
-// by Martin J. Fiedler <martin.fiedler@gmx.net>
-//
-// This software is published under the terms of KeyJ's Research License,
-// version 0.2. Usage of this software is subject to the following conditions:
-// 0. There's no warranty whatsoever. The author(s) of this software can not
-//    be held liable for any damages that occur when using this software.
-// 1. This software may be used freely for both non-commercial and commercial
-//    purposes.
-// 2. This software may be redistributed freely as long as no fees are charged
-//    for the distribution and this license information is included.
-// 3. This software may be modified freely except for this license information,
-//    which must not be changed in any way.
-// 4. If anything other than configuration, indentation or comments have been
-//    altered in the code, the original author(s) must receive a copy of the
-//    modified code.
-
-
-///////////////////////////////////////////////////////////////////////////////
-// DOCUMENTATION SECTION                                                     //
-// read this if you want to know what this is all about                      //
-///////////////////////////////////////////////////////////////////////////////
-
-// INTRODUCTION
-// ============
-//
-// This is a minimal decoder for baseline JPEG images. It accepts memory dumps
-// of JPEG files as input and generates either 8-bit grayscale or packed 24-bit
-// RGB images as output. It does not parse JFIF or Exif headers; all JPEG files
-// are assumed to be either grayscale or YCbCr. CMYK or other color spaces are
-// not supported. All YCbCr subsampling schemes with power-of-two ratios are
-// supported, as are restart intervals. Progressive or lossless JPEG is not
-// supported.
-// Summed up, NanoJPEG should be able to decode all images from digital cameras
-// and most common forms of other non-progressive JPEG images.
-// The decoder is not optimized for speed, it's optimized for simplicity and
-// small code. Image quality should be at a reasonable level. A bicubic chroma
-// upsampling filter ensures that subsampled YCbCr images are rendered in
-// decent quality. The decoder is not meant to deal with broken JPEG files in
-// a graceful manner; if anything is wrong with the bitstream, decoding will
-// simply fail.
-// The code should work with every modern C compiler without problems and
-// should not emit any warnings. It uses only (at least) 32-bit integer
-// arithmetic and is supposed to be endianness independent and 64-bit clean.
-// However, it is not thread-safe.
-
+/**
+ * @file   JPEGparser.c
+ * @author Alexander Bliem abliem.itsb-m2012@fh-salzburg.ac.at
+ * @author Stefan Auer sauer.itsb-m2012@fh-salzburg.ac.at
+ * @date   01.07.2013
+ * @version 1.0
+ * @brief This is a minimal decoder for baseline JPEG images and includes a JPEG en- and
+ * decryption algorithm, based on an AES OFB_Mode pseudo number generator.
+ * It accepts memory dumps of JPEG files as input and generates a memory dump of
+ * the encrypted JPEG file. All YCbCr subsampling schemes with power-of-two ratios are
+ * supported, as are restart intervals. Progressive or lossless JPEG is not
+ * supported.
+ * The JPEG decoder is based on the nanoJPEG open source project.
+ *
+ * NanoJPEG -- KeyJ's Tiny Baseline JPEG Decoder
+ * version 1.3 (2012-03-05)
+ * by Martin J. Fiedler <martin.fiedler@gmx.net>
+ *
+ * This software is published under the terms of KeyJ's Research License,
+ * version 0.2. Usage of this software is subject to the following conditions:
+ *  0. There's no warranty whatsoever. The author(s) of this software can not
+ *     be held liable for any damages that occur when using this software.
+ *  1. This software may be used freely for both non-commercial and commercial
+ *     purposes.
+ *  2. This software may be redistributed freely as long as no fees are charged
+ *     for the distribution and this license information is included.
+ *  3. This software may be modified freely except for this license information,
+ *     which must not be changed in any way.
+ *  4. If anything other than configuration, indentation or comments have been
+ *     altered in the code, the original author(s) must receive a copy of the
+ *     modified code.
+ */
 
 
 #include <stdlib.h>
@@ -502,7 +487,12 @@ static inline void DecodeDHT(void){
 }
 
 
-
+/**
+* 	@fn static inline void njDecodeDRI(void)
+*	@brief decode the DRI-Marker, and set the restart interval to nj.rstinterval
+* 	@param[in] void
+* 	@return void
+*/
 
 static inline void njDecodeDRI(void) {
     njDecodeLength();
@@ -560,7 +550,7 @@ static int getHuffCWVPair(huffman* huffTbl, unsigned char* c, RLE_Element_t* pEl
     	value = huffTbl->values[code];
     }
 
-    if (c) *c = (unsigned char) value;	//if DC-coefficient is decoded than c is NULL
+    if (c) *c = (unsigned char)value;	//if DC-coefficient is decoded than c is NULL
 
     size = value & 15;
     if(!size) {
@@ -697,7 +687,12 @@ static inline void addEOI(void){
 }
 
 
-
+/**
+* 	@fn static inline int getValue(RLE_Element_t* pElement)
+*	@brief This function returns the DC-value stored in the structure RLE_Element_t
+* 	@param[in] RLE_Element_t* pElement one Run-Length-Encoded Element (codeword-value-pair, size of code and size of value) is stored in this structure
+* 	@return int newDC DC-Value stored in structure RLE_Element_t
+*/
 static inline int getValue(RLE_Element_t* pElement){
 	int newDC;
 	newDC = (pElement->codeValuePair & bmask[pElement->sizeValue]);
@@ -705,44 +700,14 @@ static inline int getValue(RLE_Element_t* pElement){
 		newDC += ((-1) << pElement->sizeValue) + 1;
 	}
 	return newDC;
-	//DCcorrection[i++] += newDC;
 }
 
-
-
-/**
-* 	@fn static inline void setNewDCData(compCnt, blockCnt, newDCSize, newDC)
-*	@brief This function encodes and set a new DC-Value, DC-Code and DC-Size to the current en/-decrypted MCU
-* 	@param[in] 	compCnt		current component id
-* 				blockCnt	current block id
-* 				newDCSize	size of new DC-Value (needed bits)
-* 				newDC		new DC-Value
-*
-* 	@return void
-*/
-static inline void setNewDCData(int compCnt, int blockCnt, int newDC){
-
-	int absDC;
-	int newDCSize=0;
-
-	//if < 0 than absDC=-newDC and newDC is decreased,
-	absDC = (newDC < 0) ? -newDC-- : newDC;
-	while(absDC != 0){
-		absDC >>= 1;
-		newDCSize++;
-	}
-	newDC &= bmask[newDCSize];
-
-	nj.mcu.comp[compCnt].block[blockCnt].rle[0].sizeValue = newDCSize;
-	nj.mcu.comp[compCnt].block[blockCnt].rle[0].sizeCode = nj.huff_dc[nj.comp[compCnt].dctabsel].size[newDCSize];
-	nj.mcu.comp[compCnt].block[blockCnt].rle[0].codeValuePair = ((nj.huff_dc[nj.comp[compCnt].dctabsel].code[newDCSize] << newDCSize) | newDC);
-}
 
 
 /**
 * 	@fn static inline void encryptMCU(void)
 *	@brief This function is responsible for the JPEG encryption.
-*	The block-, cwv-pair- and value- encryption is be performed according to the value stored in j.swapBlock, nj.swapCWV_block, nj.swapValues and nj.swapDC.
+*	The block-, cwv-pair- and value- encryption is performed according to the flags: nj.swapBlock, nj.swapCWV_block, nj.swapValues and nj.swapDC.
 * 	@param[in] void
 * 	@return void
 */
@@ -841,7 +806,7 @@ static inline void encryptMCU(int* dcCorr){
 /**
 * 	@fn static inline void decryptMCU(void)
 *	@brief This function is responsible for the JPEG decryption.
-*	The block-, cwv-pair- and value- decryption is be performed according to the value stored in j.swapBlock, nj.swapCWV_block, nj.swapValues and nj.swapDC.
+*	The block-, cwv-pair- and value- decryption is performed according to the flags: j.swapBlock, nj.swapCWV_block, nj.swapValues and nj.swapDC.
 *	Befor the decryption is performed the needed keys for the later decryption steps are generated. This ensures, that the order of the encryption steps is reverted.
 * 	@param[in] void
 * 	@return void
@@ -962,6 +927,38 @@ static inline void decryptMCU(int* dcCorr){
 }//end decryptMCU
 
 
+
+
+/**
+* 	@fn static inline void setNewDCData(compCnt, blockCnt, newDCSize, newDC)
+*	@brief This function encodes and set a new DC-Value, DC-Code and DC-Size to the current en/-decrypted MCU
+* 	@param[in] 	compCnt		current component id
+* 				blockCnt	current block id
+* 				newDCSize	size of new DC-Value (needed bits)
+* 				newDC		new DC-Value
+*
+* 	@return void
+*/
+static inline void setNewDCData(int compCnt, int blockCnt, int newDC){
+
+	int absDC;
+	int newDCSize=0;
+
+	//if < 0 than absDC=-newDC and newDC is decreased,
+	absDC = (newDC < 0) ? -newDC-- : newDC;
+	while(absDC != 0){
+		absDC >>= 1;
+		newDCSize++;
+	}
+	newDC &= bmask[newDCSize];
+
+	nj.mcu.comp[compCnt].block[blockCnt].rle[0].sizeValue = newDCSize;
+	nj.mcu.comp[compCnt].block[blockCnt].rle[0].sizeCode = nj.huff_dc[nj.comp[compCnt].dctabsel].size[newDCSize];
+	nj.mcu.comp[compCnt].block[blockCnt].rle[0].codeValuePair = ((nj.huff_dc[nj.comp[compCnt].dctabsel].code[newDCSize] << newDCSize) | newDC);
+}
+
+
+
 /**
 * 	@fn static inline void DecodeScan(void)
 *	@brief This function decodes the SOS-Marker (Start of Scan). After the SOS-header is read, the whole "JPEG-header" is copied from the in- to the out-buffer.
@@ -1054,7 +1051,7 @@ static inline void DecodeScan(void){
     			for(compCnt=0 ; compCnt<nj.mcu.nUsedComp ; compCnt++){
         			for(blockCnt=0 ; blockCnt < nj.mcu.comp[compCnt].nUsedBlocks ; blockCnt++){
 
-        				printf("\n%i\t%i\t",i, DCcorrection[i]);
+        				//printf("\n%i\t%i\t",i, DCcorrection[i]);
         				dcValue = getValue(&nj.mcu.comp[compCnt].block[blockCnt].rle[0]);
         				newDCValue = dcValue + DCcorrection[i];
 
@@ -1097,7 +1094,7 @@ static inline void DecodeScan(void){
         					}
 
         				}
-        				printf("%i\t%i\t%i\t%i", dcValue, newDCValue, DCcorrection[i],corrNeeded);
+        				//printf("%i\t%i\t%i\t%i", dcValue, newDCValue, DCcorrection[i],corrNeeded);
         				i++;
 
         				if(i>NUM_OF_DC_VAL_TO_CORR)
@@ -1138,13 +1135,42 @@ static inline void DecodeScan(void){
 }
 
 
-
+/**
+* 	@fn void njInit(void)
+*	@brief This function is needed for the memory initialization
+* 	@param[in] void
+* 	@return void
+*/
 void njInit(void) {
 	memset(&nj, 0, sizeof(nj_context_t));
 	initDcPrng();	// the dc encryption will use a different AES-PseudoNumberGenerator for safty reason
-
 }
 
+
+/**
+* 	@fn nj_result_t jpegCrypto( const void* jpegIn, const void* jpegOut, const long sizeIn, long *sizeOut, int* in_roiArray, int* in_roiArraySize, int cryptoDetail, int cryptoMode)
+*
+*	@brief This function is called to decode and encrypt a JPEG dump.
+*
+* 	@param[in] 	const void* jpegIn		points to the JPEG input dump
+* 				const void* jpegOut 	points to the JPEG output dump (return)
+* 				const long sizeIn		size of the input picture
+* 				long *sizeOut			size of the output picture
+* 				int* in_roiArray 		RoI array; each input RoI contains x, y, width and height (in pixels) the values are returned to the caller in MCUs (instead of pixels)
+* 				int* in_roiArraySize 	size of roiArray, 4 => one RoI
+* 				int cryptoDetail		defines the en- and decryption level 	bit0 = 1 => swap block;
+* 																				bit1 = 1 => swap code-word-value-pairs;
+* 																				bit2 = 1 => swap AC value bits;
+* 																				bit3 = 1 => swap DC value bits;
+* 				int cryptoMode		0 ... no en- or decryption
+* 									1 ... encryption
+* 									2 ... decryption
+*
+* 	@return nj_result_t nj.error    0 ... encryption successful
+* 									1 ... not a JPEG input file
+* 									2 ... unsupported JPEG file
+* 									3 ... syntax error in JPEG file
+*/
 
 nj_result_t jpegCrypto(const void* jpegIn, const void* jpegOut, const long sizeIn, long *sizeOut, int* in_roiArray, int* in_roiArraySize, int cryptoDetail, int cryptoMode) {
     njInit();
@@ -1174,7 +1200,7 @@ nj_result_t jpegCrypto(const void* jpegIn, const void* jpegOut, const long sizeI
             case 0xC1: njDecodeSOF();	break;	//---Start of frame marker Extended Sequential DCT
             case 0xC4: DecodeDHT();	   	break;	//---Define Huffman table(s)
             case 0xDA: DecodeScan(); 	break;	//---SOS Start of Scan
-            case 0xDD: njDecodeDRI();  break;	//---Define restart interval
+            case 0xDD: njDecodeDRI();   break;	//---Define restart interval
             case 0xFE: njSkipMarker(); 	break;	//---Comment
             default:
                 //--- marker 0xDB added to the skipped markers

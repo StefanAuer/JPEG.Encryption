@@ -1,33 +1,27 @@
-// NanoJPEG -- KeyJ's Tiny Baseline JPEG Decoder
-// version 1.3 (2012-03-05)
-// by Martin J. Fiedler <martin.fiedler@gmx.net>
-//
-// This software is published under the terms of KeyJ's Research License,
-// version 0.2. Usage of this software is subject to the following conditions:
-// 0. There's no warranty whatsoever. The author(s) of this software can not
-//    be held liable for any damages that occur when using this software.
-// 1. This software may be used freely for both non-commercial and commercial
-//    purposes.
-// 2. This software may be redistributed freely as long as no fees are charged
-//    for the distribution and this license information is included.
-// 3. This software may be modified freely except for this license information,
-//    which must not be changed in any way.
-// 4. If anything other than configuration, indentation or comments have been
-//    altered in the code, the original author(s) must receive a copy of the
-//    modified code.
-
+/**
+ * @file   JPEGparser.h
+ * @author Alexander Bliem abliem.itsb-m2012@fh-salzburg.ac.at
+ * @author Stefan Auer sauer.itsb-m2012@fh-salzburg.ac.at
+ * @date   01.07.2013
+ * @version 1.0
+ * @brief JPEGparser.h is the header for JPEGparser.c
+ * The JPEG decoder is based on the nanoJPEG open source project.
+ *
+ * NanoJPEG -- KeyJ's Tiny Baseline JPEG Decoder
+ * version 1.3 (2012-03-05)
+ * by Martin J. Fiedler <martin.fiedler@gmx.net>
+ */
 
 #ifndef JPEGPARSER_H_
 #define JPEGPARSER_H_
 
-//---start
+
 #define DC	0
 #define AC	1
 
 #define NO_CRYPTO	0
 #define ENCRYPTION	1
 #define DECRYPTION	2
-//---end
 
 
 // nj_result_t: Result codes for njDecode().
@@ -47,6 +41,7 @@ typedef enum _nj_result {
 // using any of the other NanoJPEG functions.
 void njInit(void);
 
+
 // jpegCrypto: Decode a JPEG image.
 // Decodes a memory dump of a JPEG file into internal buffers.
 // Parameters:
@@ -57,27 +52,25 @@ void njInit(void);
 // Return value: The error code in case of failure, or NJ_OK (zero) on success.
 nj_result_t jpegCrypto(const void* jpegIn, const void* jpegOut, const long sizeIn, long *sizeOut, int* in_roiArray, int* in_roiArraySize, int cryptoDetail, int cryptoMode);
 
-// njGetWidth: Return the width (in pixels) of the most recently decoded
-// image. If njDecode() failed, the result of njGetWidth() is undefined.
+
+// njGetWidth: Return the width (in pixels) of the most recently decoded image.
 int njGetWidth(void);
 
-// njGetHeight: Return the height (in pixels) of the most recently decoded
-// image. If njDecode() failed, the result of njGetHeight() is undefined.
+
+// njGetHeight: Return the height (in pixels) of the most recently decoded image.
 int njGetHeight(void);
 
 
-// njGetImageSize: Returns the size (in bytes) of the image data returned
-// by njGetImage(). If njDecode() failed, the result of njGetImageSize() is
-// undefined.
+// njGetImageSize: Returns the size (in bytes) of the image data returned by njGetImage().
 int njGetImageSize(void);
 
 
-
-
+// njGetOriginalImageBufferSize: Returns the size (in bytes) of the input image data
 int njGetOriginalImageBufferSize(void);
+
+
+// njGetCryptoImageBufferSize: Returns the size (in bytes) of the encrypted image data
 int njGetCryptoImageBufferSize(void);
-
-
 
 
 #endif /* JPEGPARSER_H_ */
