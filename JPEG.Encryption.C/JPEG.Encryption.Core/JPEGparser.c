@@ -5,11 +5,15 @@
  * @date   01.07.2013
  * @version 1.0
  * @brief This is a minimal decoder for baseline JPEG images and includes a JPEG en- and
- * decryption algorithm, based on an AES OFB_Mode pseudo number generator.
+ * decryption algorithm, based on an AES OFB-Mode pseudo random number generator.
  * It accepts memory dumps of JPEG files as input and generates a memory dump of
- * the encrypted JPEG file. All YCbCr subsampling schemes with power-of-two ratios are
- * supported, as are restart intervals. Progressive or lossless JPEG is not
+ * the encrypted JPEG image. All YCbCr subsampling schemes with power-of-two ratios are
+ * supported, as well as restart intervals. Progressive or lossless JPEG is not
  * supported.
+ * For further details to the bit-stream-based encryption algorithm, as well as to run-time
+ * performance measurements see the following journal article:
+ * Stefan Auer, Alexander Bliem, Dominik Engel, Andreas Uhl, Andreas Unterweger, "Bitstream-based JPEG Encryption in Real-time". In Chang-Tsun Li (Ed.) International Journal of Digital Crime and Forensics, vol. 5(3), accepted.  
+ * 
  * The JPEG decoder is based on the nanoJPEG open source project.
  *
  * NanoJPEG -- KeyJ's Tiny Baseline JPEG Decoder

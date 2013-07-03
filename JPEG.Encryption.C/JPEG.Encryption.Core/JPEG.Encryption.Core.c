@@ -4,7 +4,7 @@
  * @author Stefan Auer sauer.itsb-m2012@fh-salzburg.ac.at
  * @date   31.10.2012
  * @version 1.0
- * @brief This module contains the main() function, and calls the needed function for JPEG encryption and decryption.
+ * @brief This module contains the main() function, and calls the needed function for the JPEG encryption and decryption (JPEGparser.c).
  *
  */
 
