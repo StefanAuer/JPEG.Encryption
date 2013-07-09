@@ -106,6 +106,8 @@
 #define VIDEO_FRAME_RATE_DEN 1
 
 /// Video render needs at least 2 buffers.
+// AS: using only one buffer due time measuring. 
+// Multiple buffers means multiple threads.
 #define VIDEO_OUTPUT_BUFFERS_NUM 1
 
 // Max bitrate we allow for recording
@@ -134,7 +136,7 @@ int crypto_detail = 15;
 unsigned char key[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 int key_size = 16;
 unsigned char * jpeg_in;
-long size_in = 640 * 480 *2;
+long size_in = 640 * 480 * 2;
 int result= -1;
 char* fileNames[10000];
 
@@ -149,8 +151,8 @@ CvMat* encoded = NULL;
 // **** AS: variables for time measurement
 //
 static clock_t tInitStart, tInitEnd, tEncodeStart, tEncodeEnd, tFacedetectStart, tFacedetectEnd;
-static tEncryptionStart, tEncryptionEnd, tSaveStart, tSaveEnd, tTotalStart, tTotalEnd;
-double dInit,  dEncode, dSave, dFacedetect, dEncrypt, dTotal;
+static tEncryptionStart, tEncryptionEnd, tSaveStart, tSaveEnd, tTotalStart, tTotalEnd, tResizeStart, tResizeEnd;
+double dInit,  dEncode, dSave, dFacedetect, dEncrypt, dTotal, dResize;
 int fileCounter = 0;
 int currentFileIndex = 0;
 
@@ -200,6 +202,7 @@ void loadJpg(const char * dirName)
 	FILE    *entry_file;
 
 	FD = opendir (dirName);
+	// get all files names and save it in fileNames[]
 	while (in_file = readdir(FD))
 		if (strstr (in_file->d_name, ".jpg") != NULL)
 		{
@@ -208,7 +211,6 @@ void loadJpg(const char * dirName)
 			strcat(fileNames[fileCounter], in_file->d_name);
 			fileCounter++;
 		}
-
 }
 
 // default status
@@ -224,10 +226,10 @@ static void default_status(RASPIVID_STATE *state)
    memset(state, 0, sizeof(RASPIVID_STATE));
 
    // Now set anything non-zero
-   state->timeout 				= 90000000; // time for capturing
-   state->width 				= 640;      // use a multiple of 320 (640, 1280)
-   state->height 				= 480;	    // use a multiple of 240 (480, 960)
-   state->bitrate 				= 17000000; // This is a decent default bitrate for 1080p
+   state->timeout 					= 90000000; // time for capturing
+   state->width 					= 640;      // use a multiple of 320 (640, 1280)
+   state->height 					= 480;	    // use a multiple of 240 (480, 960)
+   state->bitrate 					= 17000000; // This is a decent default bitrate for 1080p
    state->framerate 				= VIDEO_FRAME_RATE_NUM;
    state->immutableInput 			= 1;
 
@@ -235,7 +237,7 @@ static void default_status(RASPIVID_STATE *state)
    // **** AS: switch between color and grayscale here!
    //
    // *********************************************************************************************************
-   state->graymode 				= 0;	    // grayscale by default, much faster than color (0)
+   state->graymode 				= 0;	    // grayscale by default, much faster than color (1)
    // *********************************************************************************************************
 
    // Setup preview window defaults
@@ -262,14 +264,13 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
       		{
 			mmal_buffer_header_mem_lock(buffer);
 
+			// image that replaces the original camera capture
 			IplImage* img = NULL;
+			char* fileName = fileNames[currentFileIndex];
+
+			// exit program if all test pictures were processed
 			if (currentFileIndex > fileCounter)
 				exit(0);
-			else
-			{
-			    img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_COLOR );
-			    //img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_GRAYSCALE);
-			}
 
 			tInitStart = clock();
 
@@ -282,7 +283,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 
 			memcpy(py->imageData,buffer->data,w*h);	// read Y
 
-
+			// gray or color mode?
 			if (pData->pstate->graymode==0)
 			{
 				memcpy(pu->imageData,buffer->data+w*h,w*h4); // read U
@@ -296,7 +297,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				dInit = ((double) ( tInitEnd - tInitStart )) / CLOCKS_PER_SEC;
 
 				// replace camera image with test image
-    			        img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_GRAYSCALE );
+    			img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_GRAYSCALE );
 
 
 				tEncodeStart = clock();
@@ -306,11 +307,11 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 			}
 			else
 			{
-				// replace camera image with test image
-	    		        img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_COLOR );
-
 				tInitEnd = clock();
 				dInit = ((double) ( tInitEnd - tInitStart )) / CLOCKS_PER_SEC;
+
+				// replace camera image with test image
+	    		        img = cvLoadImage( fileNames[currentFileIndex++], CV_LOAD_IMAGE_COLOR );
 
 				tEncodeStart = clock();
 					encoded = cvEncodeImage(".jpg",img, encodeParams);
@@ -318,6 +319,13 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				dEncode = ((double)( tEncodeEnd - tEncodeStart )) / CLOCKS_PER_SEC;
       			}
 
+			tResizeStart = clock();
+				// resize image to speed up face detection
+				CvSize size = cvSize(320,240);
+				IplImage* tempImg = cvCreateImage(size,img->depth,img->nChannels);
+				cvResize(img,tempImg,CV_INTER_LINEAR);
+			tResizeEnd = clock();
+			dResize = ((double)( tResizeEnd - tResizeStart )) / CLOCKS_PER_SEC;
 
 			mmal_buffer_header_mem_unlock(buffer);
 
@@ -335,11 +343,6 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				exit(-1);
 			}
 
-
-			tInitEnd = clock();
-			dInit = ((double) ( tInitEnd - tInitStart )) / CLOCKS_PER_SEC;
-
-
 			//
 			// **** AS: Disable windows as we are working from command line only (SSH)
 			//
@@ -349,19 +352,19 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 			//
 			// detect faces in image
 			tFacedetectStart = clock();
-			pFaceRectSeq = cvHaarDetectObjects (py, pCascade, pStorage,
+			pFaceRectSeq = cvHaarDetectObjects (tempImg, pCascade, pStorage,
 				1.3, 				// increase search scale by 10% each pass 
 				3, 				// merge groups of three detections
 				CV_HAAR_DO_CANNY_PRUNING, 	// skip regions unlikely to contain a face
 				cvSize(5,5), 			// smallest size face to detect = 40x40 }
 				cvSize(100,100));          	// biggest size face to detect
 
+
 			int roi_array_size = 0;
 			int * roi_array = NULL;
 
 			if(pFaceRectSeq)
 			{
-
 				unsigned char * buffer_out = (unsigned char*)calloc(size_in, sizeof(unsigned char));
 
 				// prepare 8 static RoIs
@@ -412,10 +415,15 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				tFacedetectEnd = clock();
                                 dFacedetect = ((double)( tFacedetectEnd - tFacedetectStart )) / CLOCKS_PER_SEC;
 
-				tEncryptionStart = clock();
+				cvReleaseImage(&tempImg);
 
+				tEncryptionStart = clock();
+				
+				// prepare encryption
 				jpeg_in = encoded->data.ptr;
 				long size_out = 2 * size_in; // make it twice the size (worst case)
+				
+				// encrypt!
 				encJpeg(jpeg_in, size_in, roi_array, roi_array_size, key, key_size, crypto_detail, buffer_out, &size_out, &result);
 
 				tEncryptionEnd = clock();
@@ -431,14 +439,12 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				fclose(fp_image_out);
 				free(roi_array);
 				free(buffer_out);
+				cvReleaseImage(&img);
 
 				tTotalEnd = clock();
 				dTotal = ((double) (tTotalEnd - tTotalStart)) / CLOCKS_PER_SEC;
-				printf("%s, %g, %g, %g, %g, %g, %g\n", "test", dInit, dEncode, dFacedetect, dEncrypt, dSave, dTotal);
+				printf("%s, %i, %g, %g, %g, %g, %g, %g, %g\n", fileName, 8 + pFaceRectSeq->total, dInit*1000, dResize*1000, dEncode*1000, dFacedetect*1000, dEncrypt*1000, dSave*1000, dTotal*1000);
 				tTotalStart = clock();
-
-
-
 			}
 			//
 			// **** AS: Adding new code for face detection and encryption END
@@ -714,15 +720,11 @@ static void signal_handler(int signal_number)
 int main(int argc, const char **argv)
 {
 	// AS: init timing
-	printf("filename, init [ms], encode [ms], faceDetect [ms], encrypt [ms], save [ms], total [ms]\n");
+	printf("filename, faces, init [ms], resize [ms],  encode [ms], faceDetect [ms], encrypt [ms], save [ms], total [ms]\n");
 	loadJpg("../../testImages/25quality/");
 	loadJpg("../../testImages/50quality/");
 	loadJpg("../../testImages/75quality/");
 	loadJpg("../../testImages/100quality/");
-
-	int i = 0;
-	for (i = 0; i < fileCounter; i++)
-		printf("%s\n", fileNames[i]);
 
 	// AS: init face detection
 	pStorage = cvCreateMemStorage(0);

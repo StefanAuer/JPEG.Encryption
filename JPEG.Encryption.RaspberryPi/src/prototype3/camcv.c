@@ -185,8 +185,8 @@ static void default_status(RASPIVID_STATE *state)
    state->width 				= 640;      // use a multiple of 320 (640, 1280)
    state->height 				= 480;	    // use a multiple of 240 (480, 960)
    state->bitrate 				= 17000000; // This is a decent default bitrate for 1080p
-   state->framerate 			= VIDEO_FRAME_RATE_NUM;
-   state->immutableInput 		= 1;
+   state->framerate 				= VIDEO_FRAME_RATE_NUM;
+   state->immutableInput 			= 1;
 
    //
    // **** AS: switch between color and grayscale here!
@@ -228,7 +228,10 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 
 			memcpy(py->imageData,buffer->data,w*h);	// read Y
 
-
+		    // AS: image from camera (gray or color) for face detection
+			IplImage* img = NULL;
+			
+			// gray or color mode?
 			if (pData->pstate->graymode==0)
 			{
 				memcpy(pu->imageData,buffer->data+w*h,w*h4); // read U
@@ -237,11 +240,12 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				cvResize(pu, pu_big, CV_INTER_NN);
 				cvResize(pv, pv_big, CV_INTER_NN);  //CV_INTER_LINEAR looks better but it's slower
 				cvMerge(py, pu_big, pv_big, NULL, image);
-
+				img = image;
 				encoded = cvEncodeImage(".jpg",image, encodeParams);
 			}
 			else
 			{
+				img = py;
 				encoded = cvEncodeImage(".jpg",py, encodeParams);
 			}
 
@@ -268,8 +272,13 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 			// 
 			// **** AS: Adding new code for face detection and encryption BEGIN
 			//
+			// resize image for face detection
+			CvSize size = cvSize(320,240);
+			IplImage* tempImg = cvCreateImage(size,img->depth,img->nChannels);
+			cvResize(img,tempImg,CV_INTER_LINEAR);
+			
 			// detect faces in image
-			pFaceRectSeq = cvHaarDetectObjects (py, pCascade, pStorage,
+			pFaceRectSeq = cvHaarDetectObjects (tempImg, pCascade, pStorage,
 				1.3, 				// increase search scale by 10% each pass 
 				3, 				// merge groups of three detections
 				CV_HAAR_DO_CANNY_PRUNING, 	// skip regions unlikely to contain a face
@@ -279,6 +288,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 			int roi_array_size = 0;
 			int * roi_array = NULL;
 
+			// null?
 			if(pFaceRectSeq)
 			{
 				unsigned char * buffer_out = (unsigned char*)calloc(size_in, sizeof(unsigned char));
@@ -287,6 +297,7 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 				roi_array = (int*)calloc(pFaceRectSeq->total*4, sizeof(int));
 				roi_array_size = pFaceRectSeq->total * 4;
 
+				// process every face
 				int i = 0;
 				for(i=0;i<(pFaceRectSeq? pFaceRectSeq->total:0); i++ )
 				{
@@ -296,10 +307,24 @@ static void video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffe
 					roi_array[i*4 + 2] = r->width;
 					roi_array[i*4 + 3] = r->height;
 					printf("x: %i, y: %i, w: %i, h: %i\n", r->x, r->y, r->width, r->height);
-				 }
-
+				}
+				
+				// add fake RoI (otherwise the whole image will be encrypted)
+				if (pFaceRectSeq->total == 0)
+				{
+					roi_array = (int*)calloc(4, sizeof(int));
+					roi_array_size = 4;
+					roi_array[i*4 + 0] = 1000;
+					roi_array[i*4 + 1] = 1000;
+					roi_array[i*4 + 2] = 1;
+					roi_array[i*4 + 3] = 1;
+				}
+				
+				// prepare encryption
 				jpeg_in = encoded->data.ptr;
 				long size_out = 2 * size_in; // make it twice the size (worst case)
+				
+				// encrypt!
 				encJpeg(jpeg_in, size_in, roi_array, roi_array_size, key, key_size, crypto_detail, buffer_out, &size_out, &result);
 
 				printf("saving image\n");
