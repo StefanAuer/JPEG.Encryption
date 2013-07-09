@@ -33,4 +33,6 @@ timing: $(objectsTiming)
 clean:
 	@rm -f $(target) *.o
 	@rm -f $(pubdir)$(target)   
+	@rm -f $(pubdir)$(targetTiming)   
+
 

@@ -1,7 +1,7 @@
 /*-----------------------------------------------------------------------------+
  * objectDetection.cpp (second prototype)                                      |
  *                                                                             |
- * Author: Alexander Bliem abliem.itsb-m2012@fh-salzburg.ac.at                 | 
+ * Author: Alexander Bliem abliem.itsb-m2012@fh-salzburg.ac.at                 |
  * Author: Stefan Auer sauer.itsb-m2012@fh-salzburg.ac.at                      |
  * Author: A. Huaman ( based in the classic facedetect.cpp in samples/c )      |
  *                                                                             |
@@ -16,17 +16,7 @@
  * 4) encrypt image using the our C code                                       |
  * 5) write encrypted image to HTTP accessible directory (e.g. /var/www)       |
  *                                                                             |
- * input parameters:                                                           | 
- *    --cascade:   determines which cascade file will be used                  |
- *    --password:  the password for encryption                                 |
- *    --mode:      e for encryption, d for decryption                          |
- *    --details:   value from 1 to 15. Determines which encryption details     |
- *                 (DC encryption, swap values etc.) will be used. See         |
- *                 JPEG.Encryption.Core documentation                          |
- *    --scale:     scale size for face detection                               |
- *    --minWidth:  min width for a face                                        |
- *    --minHeight: min height for a face                                       | 
- *    --wwwDir:    output directory                                            |
+ * input parameters: none                                                           | 
  *                                                                             |
  *-----------------------------------------------------------------------------+
  */
@@ -66,7 +56,7 @@ using namespace cv;
  */
 
 // variables for face detection
-string face_cascade_name = "../../OpenCV-2.3.1/data/lbpcascades/lbpcascade_frontalface.xml";
+string face_cascade_name = "../../OpenCV-2.4.3/data/lbpcascades/lbpcascade_frontalface.xml";
 CascadeClassifier face_cascade;
 CascadeClassifier eyes_cascade;
 
@@ -153,8 +143,6 @@ int * detect( Mat frame, int * roi_array_size )
 	roi_arr[30] = 71;
 	roi_arr[31] = 28;
 
-
-
 	// copy detected faces to result
 	for( size_t i = 8; i < faces.size()+8 ; i++ )
         {
@@ -174,23 +162,35 @@ int * detect( Mat frame, int * roi_array_size )
 	return roi_arr;
 }
 
-
+/*-----------------------------------------------------+
+ * gets all .jpg files from a directory                |
+ * IN dirName: path/name of the directory              |
+ * RETURNS: vector with filenames                      |
+ *-----------------------------------------------------+
+ */
 vector<string> getJpg(const char * dirName)
 {
+	// init
 	vector<string> result;
-
 	DIR *dir;
 	struct dirent *ent;
+
+	// open directory
 	if ((dir = opendir (dirName)) != NULL) 
 	{
+		// get files
 		while ((ent = readdir (dir)) != NULL) 
 		{
-		      string directory(dirName);
-		      string fileName(ent->d_name);
-		      if ( fileName.find(".jpg") > 0 && fileName.size() > 3)
+		     	// get directory and file name 
+		      	string directory(dirName);
+		      	string fileName(ent->d_name);
+
+		      	// if file ends with ".jpg" add it to the result
+			if ( fileName.find(".jpg") > 0 && fileName.size() > 3)
 			      result.push_back(directory + "/" + fileName);
 	  	}
 	}
+	// close directory pointer
 	closedir (dir);
 
 	return result;
@@ -211,10 +211,14 @@ int main( void )
 	// one single image
 	Mat frame;
 
+	// image size before and after the encryption
 	long size_in;
 	long size_out;
 
+	// the input image
 	unsigned char * jpeg_in;
+
+	// file pointer to output file	
         FILE * fp_image_out = NULL;
 
 	// load the cascade
@@ -242,6 +246,7 @@ int main( void )
 	allTestFiles.insert (allTestFiles.end(), testImages75.begin(), testImages75.end());
 	allTestFiles.insert (allTestFiles.end(), testImages100.begin(), testImages100.end());
 
+	// sort file names
 	sort (allTestFiles.begin(), allTestFiles.end());
 
 	if( capture )
@@ -253,10 +258,7 @@ int main( void )
 		//int mode = ('M' & 255) + (('J' & 255) << 8) + (('P' & 255) << 16) + (('G' & 255) << 24);
        		//cvSetCaptureProperty(capture, CV_CAP_PROP_FORMAT , mode);
 
-		//vector<int> quality_params;
-		//quality_params.push_back(CV_IMWRITE_JPEG_QUALITY);
-		//quality_params.push_back(75);
-
+		// buffer used for converting an image
 		vector<uchar> buff;
 
 		unsigned char * buffer_out;
@@ -267,9 +269,9 @@ int main( void )
    	        int   roi_array_size = 0;
 
 
-		//for(;;)
 		printf("filename, fileSize [kb], RoIs, capture [ms], faceDetect [ms], convert[ms], encryption [ms], writeToDisk\n ");
 
+		// process every test picture
     	        for (vector<string>::iterator it=allTestFiles.begin(); it!=allTestFiles.end(); ++it)
 		{
 
@@ -281,8 +283,6 @@ int main( void )
 			// replace captured image with test image
 			frame = imread(*it);
 
-
-
 			tDetection = (double)cvGetTickCount();
 
 			if( !frame.empty() && (++counter %  FACEDETECT_EVERY_N_TH_FRAME == 0))
@@ -292,10 +292,7 @@ int main( void )
 			}
 
 			tDetection = (double)cvGetTickCount() - tDetection;
-
 			tConvert = (double)cvGetTickCount();
-
-
 
 			// prepare variables for encryption
 			jpeg_in = frame.data;
@@ -306,55 +303,41 @@ int main( void )
 			// encode picture to JPEG
 			imencode(".jpg", frame, buff);//, quality_params);
 
-
-
 			//little trick to convert vector to array
-			jpeg_in = &buff[0]; 
+			jpeg_in = &buff[0];
 
 			tConvert = (double)cvGetTickCount() - tConvert;
-
 			tEncrypt = (double)cvGetTickCount();
-
 
 			int result = -1;
                         if (roi_array_size > 0)
-			{
 	                        encJpeg(jpeg_in, size_in, roi_array, roi_array_size, key, key_size, crypto_detail,  buffer_out, &size_out, &result);
-			}
 
 			tEncrypt = (double)cvGetTickCount() - tEncrypt;
-
 			tWrite = (double)cvGetTickCount();
 
-
-
+			// open output file
 			fp_image_out = fopen("/var/www/JPEG.Encryption/camera.jpg","wb");
 		        if (roi_array_size > 0)
-			{
 				fwrite(buffer_out, sizeof(char), size_out, fp_image_out);
-			}
 			else
-			{
 				fwrite(&buff[0], sizeof(char), buff.size(), fp_image_out);
-			}
 
-
+			// close file pointer, free memory
 			fclose(fp_image_out);
 			free(buffer_out);
 
 			tWrite = (double)cvGetTickCount() - tWrite;
 
-			waitKey(30);
-
-
+			// give the camera some milliseconds to recover
+			waitKey(20);
 
 			double tickFrq =  cvGetTickFrequency()*1000;
 
+			// get filproperties, write output
 			struct stat filestatus;
 			stat( it->c_str(), &filestatus );
 			cout << *it << ", " << filestatus.st_size << ", " << roi_array_size/4 << ", " << tCapture/tickFrq << ", " << tDetection/tickFrq << ", " << tConvert/tickFrq << ", " << (tEncrypt/tickFrq) << ", " << tWrite/tickFrq << endl; 
-
-
 		}
 	}
 	else

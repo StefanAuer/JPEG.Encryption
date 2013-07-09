@@ -7,21 +7,23 @@
 | Date   01.05.2013                                                           |
 | Version 1.0                                                                 |
 |                                                                             |
-| This folder contains the files required for the first prototype for         |
-| JPEG-Encryption. It is based on the sample file within the OpenCV-project   |
-| (facedetect.py).                                                            |
+| This folder contains the files required for the second prototype for        |
+| JPEG-Encryption.                                                            |
 |                                                                             |
 | Required:                                                                   |
 | 1) connected web cam (USB)                                                  |
 | 2) WebServer (e.g. apache up and running)                                   |
-| 3) A folder that is accessible through HTTP (/var/www/JPEG.Encryption/      |
-| 4) OpenCV 2.3.1 in the folder ../../OpenCV-2.3.1/                           |
+| 3) A folder that is accessible through HTTP (/var/www/JPEG.Encryption/)     |
+| 4) OpenCV 2.x.x in the folder ../../OpenCV-2.x.x/                           |
 | 5) JPEG.Encryption files in                                                 |
 |               ../JPEG.Encryption/JPEG.Encryption.C/JPEG.Encryption.Core     |
 |                                                                             |
-| Start prototype:                                                            |
-| 1) make sure run.sh is executable (chmod +x ./run.sh)                       |
-| 2) start prototype with "./run.sh"                                          |
+| Build prototype:                                                            |
+| 1) make (for normal prototype)                                              |
+| 2) make timing (for time measuring prototype)                               |
+|                                                                             |
+| start prototype:                                                            |
+| 1) start prototype with "./objectDetection"                                 |
 |                                                                             |
 | Remarks:                                                                    |
 | This is the second prototype of the project. It uses OpenCV for capturing,  | 
